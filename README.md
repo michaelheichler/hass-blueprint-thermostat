@@ -1,4 +1,4 @@
-![Home Assistant Logo](https://www.home-assistant.io/images/logo/logo.png)
+![Home Assistant Logo](https://www.home-assistant.io/images/blog/2023-09-ha10/home-assistant-logo-new.png)
 
 # Window/Door Open Climate Control with Optional Sensors
 
