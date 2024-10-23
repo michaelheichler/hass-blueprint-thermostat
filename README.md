@@ -2,7 +2,7 @@
 
 # Window/Door Open Climate Control with Optional Sensors
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/michaelheichler/hass-blueprint-thermostat/hass-blueprint-thermostat.yaml)
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/michaelheichler/hass-blueprint-thermostat/refs/heads/main/hass-blueprint-thermostat.yaml
 
 ## 🏠 Make Your Home Smarter and More Energy Efficient!
 
@@ -39,7 +39,7 @@ This **Home Assistant automation blueprint** helps you control your HVAC system 
 
 This blueprint ensures your home stays energy efficient and comfortable with minimal effort.
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/michaelheichler/hass-blueprint-thermostat/hass-blueprint-thermostat.yaml)
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=[https://github.com/michaelheichler/hass-blueprint-thermostat/hass-blueprint-thermostat.yaml](https://raw.githubusercontent.com/michaelheichler/hass-blueprint-thermostat/refs/heads/main/hass-blueprint-thermostat.yaml))
 
 ## 🏁 Get Started
 1. Click the **Import Blueprint** button above.
