@@ -39,7 +39,7 @@ This **Home Assistant automation blueprint** helps you control your HVAC system 
 
 This blueprint ensures your home stays energy efficient and comfortable with minimal effort.
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https%3A%2F%2Fgithub.com%2Fyour-repo%2Fwindow_door_climate_blueprint.yaml)
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://github.com/michaelheichler/hass-blueprint-thermostat/hass-blueprint-thermostat.yaml)
 
 ## 🏁 Get Started
 1. Click the **Import Blueprint** button above.
