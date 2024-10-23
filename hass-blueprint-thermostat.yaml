@@ -1,5 +1,5 @@
 blueprint:
-  name: "Window/Door Open Climate Control with Optional Sensors"
+  name: "🏰 Automatic HVAC Control - Window / Temperature Controlled"
   description: "Turns off the HVAC when a window or door is opened, with optional notifications for high humidity, low pressure, and temperature. Restore climate state when closed."
   domain: automation
   input:
