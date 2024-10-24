@@ -2,7 +2,7 @@
 
 # Window/Door Open Climate Control with Optional Sensors
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/michaelheichler/hass-blueprint-thermostat/refs/heads/main/hass-blueprint-thermostat.yaml
+[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/michaelheichler/hass-blueprint-thermostat/refs/heads/main/hass-blueprint-thermostat.yaml)
 
 ## 🏠 Make Your Home Smarter and More Energy Efficient!
 
