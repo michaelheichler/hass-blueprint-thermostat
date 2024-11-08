@@ -1,24 +1,30 @@
 blueprint:
   name: "🏰 Automatic HVAC Control - Window / Temperature Controlled"
-  description: "Turns off the HVAC when a window or door is opened, with optional notifications for high humidity, low pressure, and temperature. Restore climate state when closed."
+  description: >
+    Turns off the HVAC when a window or door is opened (binary sensor 'on'), with optional notifications for high humidity, low pressure, and temperature.
+    Restores climate state when windows are closed (binary sensor 'off').
+    Starts a timer before turning off the HVAC for energy-saving purposes.
   domain: automation
   input:
     climate_entity:
       name: Climate Entity
-      description: "The climate control entity to manage."
+      description: >
+        Select the HVAC system entity to manage (e.g., air conditioning or heating).
       selector:
         entity:
           domain: climate
     window_sensors:
       name: Window/Door Sensors
-      description: "The sensors that detect open windows or doors."
+      description: >
+        The sensors that detect open windows or doors.
       selector:
         entity:
           domain: binary_sensor
           multiple: true
     temperature_sensor:
       name: Outside Temperature Sensor
-      description: "Optional sensor for measuring outdoor temperature."
+      description: >
+        Optional sensor for measuring outdoor temperature.
       selector:
         entity:
           domain: sensor
@@ -26,7 +32,8 @@ blueprint:
       default: ""
     humidity_sensor:
       name: Outside Humidity Sensor
-      description: "Optional sensor for measuring outdoor humidity."
+      description: >
+        Optional sensor for measuring outdoor humidity.
       selector:
         entity:
           domain: sensor
@@ -34,21 +41,53 @@ blueprint:
       default: ""
     pressure_sensor:
       name: Atmospheric Pressure Sensor
-      description: "Optional sensor for measuring atmospheric pressure."
+      description: >
+        Optional sensor for measuring atmospheric pressure.
       selector:
         entity:
           domain: sensor
           device_class: atmospheric_pressure
       default: ""
+    humidity_threshold:
+      name: Humidity Threshold
+      description: >
+        Threshold for high humidity notifications.
+      default: 60
+      selector:
+        number:
+          min: 0
+          max: 100
+          unit_of_measurement: "%"
+          step: 1
+    pressure_threshold:
+      name: Pressure Threshold
+      description: >
+        Threshold for low pressure notifications.
+      default: 1000
+      selector:
+        number:
+          min: 900
+          max: 1050
+          unit_of_measurement: "hPa"
+          step: 1
     notify_device:
       name: Notify Device
-      description: "Device to send notifications to."
+      description: >
+        Device to send notifications to.
       selector:
         device:
           integration: mobile_app
+    window_open_timer:
+      name: Timer for Window Open Notification
+      description: >
+        Select the timer to use when a window is opened.
+      selector:
+        entity:
+          domain: timer
     hvac_off_timeout:
       name: HVAC Off Timeout
-      description: "How long to wait before turning off the HVAC if a window or door remains open."
+      description: >
+        How long to wait before turning off the HVAC if a window or door remains open.
       selector:
         duration:
           enable_day: false
@@ -57,53 +96,102 @@ variables:
   humidity_sensor: !input humidity_sensor
   pressure_sensor: !input pressure_sensor
   temperature_sensor: !input temperature_sensor
+  humidity_threshold: !input humidity_threshold
+  pressure_threshold: !input pressure_threshold
   hvac_off_timeout: !input hvac_off_timeout
+  window_open_timer: !input window_open_timer
+  window_sensors: !input window_sensors
 
 trigger:
   - platform: state
     entity_id: !input window_sensors
+    from: "off"
+    to: "on"
+  - platform: state
+    entity_id: !input window_sensors
+    from: "on"
+    to: "off"
+  - platform: event
+    event_type: timer.finished
+    event_data:
+      entity_id: !input window_open_timer
+
+condition: []
 
 action:
   - choose:
       - conditions:
+          # Check if this is a state change to "on" or an event that is not "timer.finished"
+          - condition: template
+            value_template: "{{ (trigger.to_state.state == 'on') or (trigger.event is defined and trigger.event.event_type != 'timer.finished') }}"
           - condition: state
             entity_id: !input window_sensors
             state: "on"
+          - condition: state
+            entity_id: !input window_open_timer
+            state: "idle"
         sequence:
+          - service: timer.start
+            target:
+              entity_id: !input window_open_timer
           - device_id: !input notify_device
             domain: mobile_app
             type: notify
             message: >
-              {% set area = area_name(trigger.entity_id) %}
-              🚪 The {{ trigger.to_state.name | default('window or door') }} in {{ area | default('an unknown area') }} has been opened.
-          # Humidity notification
+              🚪 The window or door in {{ area_name(window_sensors[0]) | default('an unknown area') }} has been opened.
+              The current outside temperature is {{ states(temperature_sensor) | float }}°C.
+              {% if states(temperature_sensor) | float < 15 %}
+              Please close it within {{
+                state_attr(window_open_timer, 'duration').split(':')[1] | int
+              }} minute{{ 's' if (state_attr(window_open_timer, 'duration').split(':')[1] | int) > 1 else '' }} to conserve energy.
+              {% endif %}
           - choose:
               - conditions:
                   - condition: template
                     value_template: "{{ humidity_sensor | length > 0 }}"
-                sequence:
                   - condition: numeric_state
                     entity_id: !input humidity_sensor
-                    above: 60
+                    above: !input humidity_threshold
+                sequence:
                   - device_id: !input notify_device
                     domain: mobile_app
                     type: notify
                     message: >
-                      💧 The humidity outside is currently {{ states(humidity_sensor) | float }}%, which is above the 60% threshold. Please be cautious about increased humidity levels.
-          # Pressure notification
-          - choose:
+                      💧 The humidity outside is currently {{ states(humidity_sensor) | float }}%, which is above the {{ humidity_threshold }}% threshold.
+                      Please be cautious about increased humidity levels.
+              - conditions:
+                  - condition: template
+                    value_template: "{{ humidity_sensor | length == 0 }}"
+                sequence:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: >
+                      ℹ️ No humidity sensor data available. Skipping humidity-related notifications.
+
               - conditions:
                   - condition: template
                     value_template: "{{ pressure_sensor | length > 0 }}"
-                sequence:
                   - condition: numeric_state
                     entity_id: !input pressure_sensor
-                    below: 1000
+                    below: !input pressure_threshold
+                sequence:
                   - device_id: !input notify_device
                     domain: mobile_app
                     type: notify
                     message: >
-                      🌧️ The atmospheric pressure outside is currently {{ states(pressure_sensor) | float }} hPa, indicating potential bad weather. Please be cautious.
+                      🌧️ The atmospheric pressure outside is currently {{ states(pressure_sensor) | float }} hPa, below the {{ pressure_threshold }} hPa threshold.
+                      This may indicate potential bad weather. Please be cautious.
+              - conditions:
+                  - condition: template
+                    value_template: "{{ pressure_sensor | length == 0 }}"
+                sequence:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: >
+                      ℹ️ No pressure sensor data available. Skipping pressure-related notifications.
+
           - delay: !input hvac_off_timeout
           - condition: state
             entity_id: !input window_sensors
@@ -115,12 +203,18 @@ action:
             domain: mobile_app
             type: notify
             message: >
-              ⏱️ The {{ area_name(trigger.entity_id) | default('window or door') }} has remained open for the timeout period. The HVAC system has been turned off for energy conservation.
+              ⏱️ The {{ area_name(trigger.entity_id) | default('window or door') }} has remained open for the timeout period.
+              The HVAC system has been turned off for energy conservation.
+
+      # When the window is closed, cancel the timer and restore the HVAC
       - conditions:
           - condition: state
             entity_id: !input window_sensors
             state: "off"
         sequence:
+          - service: timer.cancel
+            target:
+              entity_id: !input window_open_timer
           - service: climate.set_hvac_mode
             target:
               entity_id: !input climate_entity
@@ -130,4 +224,44 @@ action:
             domain: mobile_app
             type: notify
             message: >
-              ✅ The {{ area_name(trigger.entity_id) | default('window or door') }} has been closed. The HVAC system has been set to auto mode.
+              ✅ The {{ trigger.to_state.name if trigger.to_state is defined else 'window or door' }}
+              in {{ area_name(trigger.entity_id) | default('an unknown area') }} has been closed.
+              The HVAC system has been restored to auto mode, and the timer was canceled.
+
+  - choose:
+      # Notification specifically when the timer finishes, and the window remains open
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.event.event_type == 'timer.finished' }}"
+          - condition: state
+            entity_id: !input window_sensors
+            state: "on"
+        sequence:
+          - choose:
+              # Only notify if outside temperature data is available and below 15°C
+              - conditions:
+                  - condition: template
+                    value_template: "{{ temperature_sensor | length > 0 }}"
+                  - condition: numeric_state
+                    entity_id: !input temperature_sensor
+                    below: 15
+                sequence:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: >
+                      🥶 Reminder: The window or door in {{ area_name(window_sensors[0]) | default('an unknown area') }} has been open for {{
+                        state_attr(window_open_timer, 'duration').split(':')[1] | int
+                      }} minutes. The outside temperature is below 15°C. Please check your windows.
+              # Fallback if no temperature data is available
+              - conditions:
+                  - condition: template
+                    value_template: "{{ temperature_sensor | length == 0 }}"
+                sequence:
+                  - device_id: !input notify_device
+                    domain: mobile_app
+                    type: notify
+                    message: >
+                      ⏱️ Reminder: The window or door in {{ area_name(window_sensors[0]) | default('an unknown area') }} has been open for {{
+                        state_attr(window_open_timer, 'duration').split(':')[1] | int
+                      }} minutes. Please close it to conserve energy.
