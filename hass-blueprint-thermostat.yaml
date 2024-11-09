@@ -84,13 +84,60 @@ blueprint:
       selector:
         entity:
           domain: timer
-    hvac_off_timeout:
-      name: HVAC Off Timeout
+    temp_high_threshold:
+      name: High Temperature Threshold
       description: >
-        How long to wait before turning off the HVAC if a window or door remains open.
+        Temperature threshold above which HVAC will be turned off immediately when windows are opened (optional).
+      default: 25
+      selector:
+        number:
+          min: 15
+          max: 40
+          unit_of_measurement: "°C"
+          step: 0.5
+    temp_low_threshold:
+      name: Low Temperature Threshold
+      description: >
+        Temperature threshold below which HVAC will be turned off immediately when windows are opened (optional).
+      default: 15
+      selector:
+        number:
+          min: -5
+          max: 20
+          unit_of_measurement: "°C"
+          step: 0.5
+    daytime_hvac_timeout:
+      name: Daytime HVAC Off Timeout
+      description: >
+        How long to wait before turning off the HVAC during the day (e.g., 6:00-22:00).
       selector:
         duration:
           enable_day: false
+    nighttime_hvac_timeout:
+      name: Nighttime HVAC Off Timeout
+      description: >
+        How long to wait before turning off the HVAC during the night (e.g., 22:00-6:00).
+      selector:
+        duration:
+          enable_day: false
+    night_check_time:
+      name: Nighttime Check Time
+      description: >
+        Time to check if any windows are still open before night (format: HH:MM).
+      selector:
+        time:
+    night_start_time:
+      name: Night Period Start
+      description: >
+        When the night period starts (format: HH:MM).
+      selector:
+        time:
+    night_end_time:
+      name: Night Period End
+      description: >
+        When the night period ends (format: HH:MM).
+      selector:
+        time:
 
 variables:
   humidity_sensor: !input humidity_sensor
@@ -98,9 +145,13 @@ variables:
   temperature_sensor: !input temperature_sensor
   humidity_threshold: !input humidity_threshold
   pressure_threshold: !input pressure_threshold
-  hvac_off_timeout: !input hvac_off_timeout
   window_open_timer: !input window_open_timer
   window_sensors: !input window_sensors
+  night_check_time: !input night_check_time
+  night_start_time: !input night_start_time
+  night_end_time: !input night_end_time
+  daytime_hvac_timeout: !input daytime_hvac_timeout
+  nighttime_hvac_timeout: !input nighttime_hvac_timeout
 
 trigger:
   - platform: state
@@ -115,12 +166,40 @@ trigger:
     event_type: timer.finished
     event_data:
       entity_id: !input window_open_timer
+  - platform: time
+    at: !input night_check_time
 
 condition: []
 
 action:
   - choose:
       - conditions:
+          # Add immediate HVAC shutdown based on temperature
+          - condition: or
+            conditions:
+              - condition: numeric_state
+                entity_id: !input temperature_sensor
+                above: !input temp_high_threshold
+              - condition: numeric_state
+                entity_id: !input temperature_sensor
+                below: !input temp_low_threshold
+          # Add check for active timer
+          - condition: or
+            conditions:
+              - condition: state
+                entity_id: !input window_open_timer
+                state: "idle"
+              - condition: template
+                value_template: >
+                  {% if trigger is defined and trigger.event is defined %}
+                    {{ trigger.event.event_type == 'timer.finished' }}
+                  {% else %}
+                    false
+                  {% endif %}
+        sequence:
+          - service: climate.turn_off
+            target:
+              entity_id: !input climate_entity
           # Check if this is a state change to "on" or an event that is not "timer.finished"
           - condition: template
             value_template: "{{ (trigger.to_state.state == 'on') or (trigger.event is defined and trigger.event.event_type != 'timer.finished') }}"
@@ -130,7 +209,6 @@ action:
           - condition: state
             entity_id: !input window_open_timer
             state: "idle"
-        sequence:
           - service: timer.start
             target:
               entity_id: !input window_open_timer
@@ -192,7 +270,20 @@ action:
                     message: >
                       ℹ️ No pressure sensor data available. Skipping pressure-related notifications.
 
-          - delay: !input hvac_off_timeout
+          - choose:
+              - conditions:
+                  - condition: time
+                    after: !input night_end_time
+                    before: !input night_start_time
+                sequence:
+                  - delay: !input daytime_hvac_timeout
+              - conditions:
+                  - condition: time
+                    after: !input night_start_time
+                    before: !input night_end_time
+                sequence:
+                  - delay: !input nighttime_hvac_timeout
+          
           - condition: state
             entity_id: !input window_sensors
             state: "on"
@@ -203,7 +294,12 @@ action:
             domain: mobile_app
             type: notify
             message: >
-              ⏱️ The {{ area_name(trigger.entity_id) | default('window or door') }} has remained open for the timeout period.
+              ⏱️ The {{ area_name(trigger.entity_id) | default('window or door') }} has remained open for the timeout period
+              {% if now().hour >= (night_start_time.split(':')[0] | int) or now().hour < (night_end_time.split(':')[0] | int) %}
+              (nighttime: {{ nighttime_hvac_timeout }})
+              {% else %}
+              (daytime: {{ daytime_hvac_timeout }})
+              {% endif %}.
               The HVAC system has been turned off for energy conservation.
 
       # When the window is closed, cancel the timer and restore the HVAC
@@ -232,7 +328,12 @@ action:
       # Notification specifically when the timer finishes, and the window remains open
       - conditions:
           - condition: template
-            value_template: "{{ trigger.event.event_type == 'timer.finished' }}"
+            value_template: >
+              {% if trigger is defined and trigger.event is defined %}
+                {{ trigger.event.event_type == 'timer.finished' }}
+              {% else %}
+                false
+              {% endif %}
           - condition: state
             entity_id: !input window_sensors
             state: "on"
@@ -265,3 +366,18 @@ action:
                       ⏱️ Reminder: The window or door in {{ area_name(window_sensors[0]) | default('an unknown area') }} has been open for {{
                         state_attr(window_open_timer, 'duration').split(':')[1] | int
                       }} minutes. Please close it to conserve energy.
+
+      - conditions:
+          - condition: template
+            value_template: "{{ trigger.platform == 'time' }}"
+          - condition: state
+            entity_id: !input window_sensors
+            state: "on"
+        sequence:
+          - device_id: !input notify_device
+            domain: mobile_app
+            type: notify
+            message: >
+              🌙 Night Check: A window or door in {{ area_name(window_sensors[0]) | default('your home') }} is still open.
+              Please close it before going to bed (night period starts at {{ night_start_time }}).
+              Current outside temperature: {{ states(temperature_sensor) | float }}°C.
