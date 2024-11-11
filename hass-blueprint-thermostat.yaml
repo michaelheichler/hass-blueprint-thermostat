@@ -138,6 +138,43 @@ blueprint:
         When the night period ends (format: HH:MM).
       selector:
         time:
+    require_temperature_sensor:
+      name: Require Temperature Sensor
+      description: If enabled, automation will not run without a valid temperature sensor
+      default: false
+      selector:
+        boolean:
+    debug_mode:
+      name: Debug Mode
+      description: Enable additional logging for troubleshooting
+      default: false
+      selector:
+        boolean:
+    restore_climate_state:
+      name: Remember Previous Climate State
+      description: Restore the previous HVAC mode instead of always using auto
+      default: true
+      selector:
+        boolean:
+    seasonal_mode:
+      name: Seasonal Mode
+      description: Adjust behavior based on season
+      default: auto
+      selector:
+        select:
+          options:
+            - auto
+            - summer
+            - winter
+    notification_cooldown:
+      name: Notification Cooldown
+      description: Minimum time (in minutes) between notifications
+      default: 5
+      selector:
+        number:
+          min: 1
+          max: 60
+          unit_of_measurement: "min"
 
 variables:
   humidity_sensor: !input humidity_sensor
@@ -152,6 +189,46 @@ variables:
   night_end_time: !input night_end_time
   daytime_hvac_timeout: !input daytime_hvac_timeout
   nighttime_hvac_timeout: !input nighttime_hvac_timeout
+  temp_sensor_available: >
+    {% set sensor = temperature_sensor %}
+    {{ sensor | length > 0 and 
+       states(sensor) not in ['unknown', 'unavailable'] and 
+       states(sensor) | float(-1000) > -999 }}
+
+  any_window_open: >
+    {% for sensor in window_sensors %}
+      {% if is_state(sensor, 'on') %}
+        {{ true }}
+        {% break %}
+      {% endif %}
+    {% endfor %}
+    {{ false }}
+
+  is_night_time: >
+    {% set current_hour = now().hour %}
+    {% set night_start = night_start_time.split(':')[0] | int %}
+    {% set night_end = night_end_time.split(':')[0] | int %}
+    {{ current_hour >= night_start or current_hour < night_end }}
+
+  last_notification_key: "last_notification_{{trigger.entity_id}}"
+
+  # Add a helper variable to get window names
+  open_windows: >
+    {% set names = [] %}
+    {% for sensor in window_sensors %}
+      {% if is_state(sensor, 'on') %}
+        {% set name = state_attr(sensor, 'friendly_name') or area_name(sensor) or 'Unknown window' %}
+        {% set names = names + [name] %}
+      {% endif %}
+    {% endfor %}
+    {{ names | join(', ') }}
+
+  closed_window: >
+    {% if trigger.entity_id is defined %}
+      {{ state_attr(trigger.entity_id, 'friendly_name') or area_name(trigger.entity_id) or 'Unknown window' }}
+    {% else %}
+      'Unknown window'
+    {% endif %}
 
 trigger:
   - platform: state
@@ -219,9 +296,8 @@ action:
               🚪 The window or door in {{ area_name(window_sensors[0]) | default('an unknown area') }} has been opened.
               The current outside temperature is {{ states(temperature_sensor) | float }}°C.
               {% if states(temperature_sensor) | float < 15 %}
-              Please close it within {{
-                state_attr(window_open_timer, 'duration').split(':')[1] | int
-              }} minute{{ 's' if (state_attr(window_open_timer, 'duration').split(':')[1] | int) > 1 else '' }} to conserve energy.
+              Please close it within {{ (state_attr(window_open_timer, 'duration').split(':')[1] | int) }}
+              minute{{ 's' if (state_attr(window_open_timer, 'duration').split(':')[1] | int) > 1 else '' }} to conserve energy.
               {% endif %}
           - choose:
               - conditions:
@@ -296,33 +372,52 @@ action:
             message: >
               ⏱️ The {{ area_name(trigger.entity_id) | default('window or door') }} has remained open for the timeout period
               {% if now().hour >= (night_start_time.split(':')[0] | int) or now().hour < (night_end_time.split(':')[0] | int) %}
-              (nighttime: {{ nighttime_hvac_timeout }})
+              during nighttime (
+              {%- if nighttime_hvac_timeout.seconds // 60 > 0 -%}
+                {{ nighttime_hvac_timeout.seconds // 60 }} minute{{'s' if nighttime_hvac_timeout.seconds // 60 > 1 else ''}}
+              {%- else -%}
+                {{ nighttime_hvac_timeout.seconds % 60 }} second{{'s' if nighttime_hvac_timeout.seconds % 60 > 1 else ''}}
+              {%- endif -%})
               {% else %}
-              (daytime: {{ daytime_hvac_timeout }})
+              during daytime (
+              {%- if daytime_hvac_timeout.seconds // 60 > 0 -%}
+                {{ daytime_hvac_timeout.seconds // 60 }} minute{{'s' if daytime_hvac_timeout.seconds // 60 > 1 else ''}}
+              {%- else -%}
+                {{ daytime_hvac_timeout.seconds % 60 }} second{{'s' if daytime_hvac_timeout.seconds % 60 > 1 else ''}}
+              {%- endif -%})
               {% endif %}.
               The HVAC system has been turned off for energy conservation.
 
       # When the window is closed, cancel the timer and restore the HVAC
       - conditions:
-          - condition: state
-            entity_id: !input window_sensors
-            state: "off"
+          - condition: template
+            value_template: >
+              {{ trigger.platform == 'state' and trigger.to_state.state == 'off' }}
+          # Remove the climate state condition as it's preventing restoration
         sequence:
           - service: timer.cancel
             target:
               entity_id: !input window_open_timer
-          - service: climate.set_hvac_mode
-            target:
-              entity_id: !input climate_entity
-            data:
-              hvac_mode: "auto"
+          # Only restore climate if all windows are closed
+          - if:
+              condition: template
+              value_template: "{{ not any_window_open }}"
+            then:
+              - service: climate.set_hvac_mode
+                target:
+                  entity_id: !input climate_entity
+                data:
+                  hvac_mode: "auto"
           - device_id: !input notify_device
             domain: mobile_app
             type: notify
             message: >
-              ✅ The {{ trigger.to_state.name if trigger.to_state is defined else 'window or door' }}
-              in {{ area_name(trigger.entity_id) | default('an unknown area') }} has been closed.
-              The HVAC system has been restored to auto mode, and the timer was canceled.
+              ✅ {{ closed_window }} has been closed.
+              {% if not any_window_open %}
+              All windows are now closed. The HVAC system has been restored to auto mode.
+              {% else %}
+              The following windows are still open: {{ open_windows }}
+              {% endif %}
 
   - choose:
       # Notification specifically when the timer finishes, and the window remains open
