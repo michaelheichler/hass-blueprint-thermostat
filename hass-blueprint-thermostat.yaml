@@ -388,36 +388,43 @@ action:
               {% endif %}.
               The HVAC system has been turned off for energy conservation.
 
-      # When the window is closed, cancel the timer and restore the HVAC
+      # Fix for window closing behavior
       - conditions:
           - condition: template
             value_template: >
               {{ trigger.platform == 'state' and trigger.to_state.state == 'off' }}
-          # Remove the climate state condition as it's preventing restoration
         sequence:
           - service: timer.cancel
             target:
               entity_id: !input window_open_timer
-          # Only restore climate if all windows are closed
+          # Check if all windows are closed before restoring climate
           - if:
               condition: template
-              value_template: "{{ not any_window_open }}"
+              value_template: "{{ not expand(window_sensors) | selectattr('state', 'eq', 'on') | list | length }}"
             then:
               - service: climate.set_hvac_mode
                 target:
                   entity_id: !input climate_entity
                 data:
-                  hvac_mode: "auto"
-          - device_id: !input notify_device
-            domain: mobile_app
-            type: notify
-            message: >
-              ✅ {{ closed_window }} has been closed.
-              {% if not any_window_open %}
-              All windows are now closed. The HVAC system has been restored to auto mode.
-              {% else %}
-              The following windows are still open: {{ open_windows }}
-              {% endif %}
+                  hvac_mode: >
+                    {% if restore_climate_state %}
+                      {{ states(climate_entity).attributes.get('last_hvac_mode', 'auto') }}
+                    {% else %}
+                      auto
+                    {% endif %}
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                message: >
+                  ✅ {{ closed_window }} has been closed.
+                  All windows are now closed. The HVAC system has been restored.
+            else:
+              - device_id: !input notify_device
+                domain: mobile_app
+                type: notify
+                message: >
+                  ℹ️ {{ closed_window }} has been closed.
+                  The following windows are still open: {{ open_windows }}
 
   - choose:
       # Notification specifically when the timer finishes, and the window remains open
@@ -476,3 +483,4 @@ action:
               🌙 Night Check: A window or door in {{ area_name(window_sensors[0]) | default('your home') }} is still open.
               Please close it before going to bed (night period starts at {{ night_start_time }}).
               Current outside temperature: {{ states(temperature_sensor) | float }}°C.
+mode: restart
