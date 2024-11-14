@@ -1,6 +1,6 @@
 <div align="center">
 
-# 🏰 Advanced HVAC Control Blueprint for Home Assistant
+# 🏰 Yet Another HVAC Control Blueprint - But Different!
 
 [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/michaelheichler/hass-blueprint-thermostat/refs/heads/main/hass-blueprint-thermostat.yaml)
 
