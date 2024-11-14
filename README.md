@@ -1,48 +1,128 @@
-![Home Assistant Logo](https://www.home-assistant.io/images/blog/2023-09-ha10/home-assistant-logo-new.png)
+<div align="center">
 
-# Window/Door Open Climate Control with Optional Sensors
+# 🏰 Advanced HVAC Control Blueprint for Home Assistant
 
 [![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=https://raw.githubusercontent.com/michaelheichler/hass-blueprint-thermostat/refs/heads/main/hass-blueprint-thermostat.yaml)
 
-## 🏠 Make Your Home Smarter and More Energy Efficient!
+![Home Assistant Logo](https://www.home-assistant.io/images/blog/2023-09-ha10/home-assistant-logo-new.png)
 
-This **Home Assistant automation blueprint** helps you control your HVAC system efficiently by automatically turning it off when a window or door is open and turning it back on when everything is closed again. Additionally, the blueprint can send optional notifications when conditions like humidity, atmospheric pressure, or temperature exceed certain thresholds.
+[![GitHub Stars](https://img.shields.io/github/stars/michaelheichler/hass-blueprint-thermostat?style=for-the-badge&logo=github)](https://github.com/michaelheichler/hass-blueprint-thermostat/stargazers)
+[![GitHub Issues](https://img.shields.io/github/issues/michaelheichler/hass-blueprint-thermostat?style=for-the-badge&logo=github)](https://github.com/michaelheichler/hass-blueprint-thermostat/issues)
+[![Buy me a coffee](https://img.shields.io/badge/PayPal-Buy%20me%20a%20coffee-blue?style=for-the-badge&logo=paypal)](https://paypal.me/MHeichler)
 
-## 🚀 Features
-- 🏰 **Automatic HVAC Control**: Turns off the heating/cooling system when any selected window or door is open, saving energy.
-- 🔄 **Smart Restoration**: Restores the climate system once all windows or doors are closed.
-- 📤 **Optional Notifications**: Notifies you about high humidity, low pressure, or specific outdoor temperatures.
-- ⏳ **Configurable Timeout**: Set how long to wait before turning off the HVAC after a window or door is left open.
-- 🔔 **Persistent Reminders**: If a window or door remains open for 15 minutes, you will be notified, and then every 5 minutes until the window or door is closed.
+</div>
 
-## 🛠️ Setup Instructions
-1. **Select Your Devices**: Choose your climate control entity and the sensors for windows/doors.
-2. **Optional Sensors**: Add temperature, humidity, and atmospheric pressure sensors if you'd like extra notifications.
-3. **Notification Setup**: Pick the mobile device to receive notifications.
-4. **Define Timeout**: Set the timeout duration before turning off the HVAC system.
+## 🎯 Overview
 
-## 🌟 Example Usage Scenarios
-- 🚶 **Leaving the Door Open**: Automatically turns off the HVAC after a set period if the door is accidentally left open.
-- 🌧 **Weather Notifications**: Get notified when outdoor humidity or pressure reaches specific values, allowing you to adjust your comfort settings.
+An intelligent Home Assistant blueprint for HVAC control that goes beyond simple window-open detection. This blueprint focuses on energy efficiency while maintaining comfort through smart temperature management and configurable behaviors.
 
-## 📋 Blueprint Overview
-- **Climate Entity**: Your heating/cooling system.
-- **Window/Door Sensors**: Monitor if windows or doors are open.
-- **Optional Sensors**: Notifications about humidity, temperature, and atmospheric pressure.
-- **Notify Device**: Mobile device to receive notifications about actions and environmental updates.
+## ✨ Key Features
 
-## 📢 Example Notifications
-- *"The living room window has been opened."*
-- *"Humidity is above 60%. Consider closing the windows."*
-- *"The HVAC system has been turned off after the timeout period."*
-- *"The HVAC system is back to auto mode."*
+- 🌡️ **Smart Temperature Thresholds**
+  - Intelligent HVAC control based on outdoor temperature
+  - Configurable high/low temperature thresholds
 
-This blueprint ensures your home stays energy efficient and comfortable with minimal effort.
+- ⏰ **Time-Aware Operation**
+  - Different behaviors for day and night
+  - Customizable timeouts for both periods
+  - Evening checks for open windows before bedtime
 
-[![Import Blueprint](https://my.home-assistant.io/badges/blueprint_import.svg)](https://my.home-assistant.io/redirect/blueprint_import/?blueprint_url=[https://github.com/michaelheichler/hass-blueprint-thermostat/hass-blueprint-thermostat.yaml](https://raw.githubusercontent.com/michaelheichler/hass-blueprint-thermostat/refs/heads/main/hass-blueprint-thermostat.yaml))
+- 🔄 **Intelligent State Management**
+  - Remembers previous HVAC modes
+  - Smart restoration after window closure
+  - Prevents unnecessary system cycling
 
-## 🏁 Get Started
-1. Click the **Import Blueprint** button above.
-2. Select the relevant entities in Home Assistant.
-3. Relax while the blueprint manages your home's climate automatically!
+- 📊 **Environmental Monitoring**
+  - Optional humidity monitoring
+  - Atmospheric pressure tracking
+  - Temperature-based decisions
 
+- 📱 **Smart Notifications**
+  - Detailed status updates
+  - Window location information
+  - Customizable notification cooldowns
+
+## 🛠️ Installation
+
+1. Click the "Import Blueprint" button above
+2. Configure the following required entities:
+   - Climate entity (your HVAC system)
+   - Window/door sensors
+   - Notification device
+3. Optional: Add environmental sensors
+   - Temperature sensor
+   - Humidity sensor
+   - Pressure sensor
+4. Set your preferred thresholds and timings
+
+## ⚙️ Configuration Options
+
+### Required Settings
+- `climate_entity`: Your HVAC system
+- `window_sensors`: Window/door sensors to monitor
+- `notify_device`: Device for notifications
+
+### Optional Settings
+- `temperature_sensor`: Outdoor temperature monitoring
+- `humidity_sensor`: Humidity monitoring
+- `pressure_sensor`: Atmospheric pressure monitoring
+- `seasonal_mode`: Summer/Winter/Auto operation modes
+- `restore_climate_state`: Remember previous HVAC states
+
+### Timing Configuration
+- `daytime_hvac_timeout`: Delay before HVAC shutdown during day
+- `nighttime_hvac_timeout`: Delay before HVAC shutdown at night
+- `night_check_time`: Time for evening window checks
+- `notification_cooldown`: Minimum time between notifications
+
+## 🔮 Roadmap
+
+- [ ] Indoor humidity monitoring and ventilation reminders
+- [ ] Weather forecast integration for rain warnings
+- [ ] Advanced door security checks for night time
+- [ ] Extended seasonal operation modes
+- [ ] Smart home system integrations
+- [ ] Multi-zone HVAC support
+- [ ] Energy consumption analytics
+- [ ] Custom notification templates
+
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/AmazingFeature`)
+3. Commit your changes (`git commit -m 'Add some AmazingFeature'`)
+4. Push to the branch (`git push origin feature/AmazingFeature`)
+5. Open a Pull Request
+
+## 📝 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 👨‍💻 About the Author
+
+Created by Michael Heichler, a Data Scientist specializing in AI and automation. Passionate about creating smart home solutions that combine energy efficiency with practical automation.
+
+Got questions or suggestions? Feel free to:
+- Open an issue
+- Start a discussion
+- Send me a PM on the Home Assistant forum
+
+## ☕ Support
+
+If you find this blueprint helpful, consider supporting the development:
+
+[!["Buy Me A Coffee"](https://img.shields.io/badge/PayPal-Buy%20me%20a%20coffee-blue?style=for-the-badge&logo=paypal)](https://paypal.me/MHeichler)
+
+## 📊 Stats
+
+![GitHub Stars](https://img.shields.io/github/stars/michaelheichler/hass-blueprint-thermostat?style=for-the-badge&logo=github)
+![GitHub Issues](https://img.shields.io/github/issues/michaelheichler/hass-blueprint-thermostat?style=for-the-badge&logo=github)
+![GitHub Last Commit](https://img.shields.io/github/last-commit/michaelheichler/hass-blueprint-thermostat?style=for-the-badge&logo=github)
+
+---
+
+<div align="center">
+Made with ❤️ for the Home Assistant Community
+</div>
