@@ -394,24 +394,42 @@ action:
             value_template: >
               {{ trigger.platform == 'state' and trigger.to_state.state == 'off' }}
         sequence:
+          # First, cancel any running timer
           - service: timer.cancel
             target:
               entity_id: !input window_open_timer
-          # Check if all windows are closed before restoring climate
+          # Store current window status in a variable for reliability
+          - variables:
+              windows_still_open: >
+                {% set open_count = 0 %}
+                {% for sensor in window_sensors %}
+                  {% if is_state(sensor, 'on') %}
+                    {% set open_count = open_count + 1 %}
+                  {% endif %}
+                {% endfor %}
+                {{ open_count }}
+          # Check if all windows are closed using the stored variable
           - if:
               condition: template
-              value_template: "{{ not expand(window_sensors) | selectattr('state', 'eq', 'on') | list | length }}"
+              value_template: "{{ windows_still_open == 0 }}"
             then:
-              - service: climate.set_hvac_mode
-                target:
-                  entity_id: !input climate_entity
-                data:
-                  hvac_mode: >
-                    {% if restore_climate_state %}
-                      {{ states(climate_entity).attributes.get('last_hvac_mode', 'auto') }}
-                    {% else %}
-                      auto
-                    {% endif %}
+              # Store current HVAC mode before turning off if restore_climate_state is enabled
+              - if:
+                  condition: template
+                  value_template: "{{ restore_climate_state }}"
+                then:
+                  - service: climate.set_hvac_mode
+                    target:
+                      entity_id: !input climate_entity
+                    data:
+                      hvac_mode: "{{ state_attr(climate_entity, 'hvac_mode') }}"
+                else:
+                  - service: climate.set_hvac_mode
+                    target:
+                      entity_id: !input climate_entity
+                    data:
+                      hvac_mode: "auto"
+              # Notification for all windows closed
               - device_id: !input notify_device
                 domain: mobile_app
                 type: notify
@@ -419,6 +437,7 @@ action:
                   ✅ {{ closed_window }} has been closed.
                   All windows are now closed. The HVAC system has been restored.
             else:
+              # Notification for some windows still open
               - device_id: !input notify_device
                 domain: mobile_app
                 type: notify
